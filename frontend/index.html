@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mind Meter · Mental Health Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F5F1; --card:#FFFFFF; --ink:#1B2B34; --muted:#5E6F77;
+  --sea:#2F7F79; --sea-d:#215B57; --mist:#DCE7E3; --sun:#F2B94B; --line:#DDE3E0; --err:#B3412F;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Figtree',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.5;min-height:100vh}
+.wrap{display:grid;grid-template-columns:minmax(300px,420px) 1fr;min-height:100vh}
+
+/* left panel */
+aside{background:var(--ink);color:#EAF2EF;padding:48px 40px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+aside::after{content:"";position:absolute;right:-120px;bottom:-120px;width:320px;height:320px;border-radius:50%;border:1px solid rgba(255,255,255,.12);box-shadow:0 0 0 40px rgba(255,255,255,.03),0 0 0 80px rgba(255,255,255,.025);pointer-events:none}
+.brand{font-family:'Fraunces',serif;font-weight:700;font-size:22px;display:flex;align-items:center;gap:10px}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--sun)}
+aside h1{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,3.2vw,42px);line-height:1.12;margin:28px 0 14px}
+aside p.lead{color:#A9BDB7;font-size:15px;max-width:30ch}
+.gauge{position:relative;z-index:1;margin-top:24px}
+.gauge svg{width:100%;max-width:300px;display:block}
+.arc-bg{stroke:rgba(255,255,255,.12)}
+.arc-fg{stroke:var(--sun);transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)}
+.gauge-read{margin-top:-62px;max-width:300px;text-align:center;position:relative}
+.gauge-read .num{font-family:'Fraunces',serif;font-size:56px;font-weight:700;line-height:1}
+.gauge-read .of{font-size:13px;color:#A9BDB7}
+.verdict{margin-top:30px;max-width:300px;text-align:center;font-size:14px;color:#CFE0DA;min-height:44px}
+.note{font-size:12px;color:#7F958E;position:relative;z-index:1;max-width:34ch}
+
+/* form */
+main{padding:48px clamp(20px,5vw,72px) 72px;max-width:860px}
+.sec{margin-bottom:40px}
+.sec h2{font-family:'Fraunces',serif;font-weight:500;font-size:24px;margin-bottom:4px}
+.sec .sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field>label,.field>.lbl{font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:baseline}
+.field output{font-family:'Fraunces',serif;font-size:18px;color:var(--sea-d)}
+input[type=number],input[type=text]{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);font:inherit;color:var(--ink);transition:border-color .2s,box-shadow .2s}
+input:focus-visible{outline:none;border-color:var(--sea);box-shadow:0 0 0 4px rgba(47,127,121,.18)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:14px;padding:8px 14px;border-radius:999px;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.chip:hover{border-color:var(--sea)}
+.chip[aria-pressed=true]{background:var(--sea);border-color:var(--sea);color:#fff}
+.chip:focus-visible{outline:3px solid rgba(47,127,121,.4);outline-offset:2px}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.seg .chip{flex:1;border:0;border-radius:0;padding:11px 8px}
+.seg .chip+.chip{border-left:1.5px solid var(--line)}
+.seg .chip[aria-pressed=true]{background:var(--ink)}
+.wide{grid-column:1/-1}
+
+/* sliders */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:linear-gradient(to right,var(--sea) var(--p,0%),var(--mist) var(--p,0%));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--sea);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--sea)}
+input[type=range]:focus-visible{box-shadow:0 0 0 4px rgba(47,127,121,.2)}
+
+.stress .chip[aria-pressed=true][data-v=Low]{background:#3E8E5B}
+.stress .chip[aria-pressed=true][data-v=Medium]{background:#C99A1E}
+.stress .chip[aria-pressed=true][data-v=High]{background:#D2762B}
+.stress .chip[aria-pressed=true][data-v="Very High"]{background:var(--err)}
+.stress .chip[aria-pressed=true]{border-color:transparent}
+
+.submit{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.btn{background:var(--ink);color:#fff;border:0;font:inherit;font-weight:600;font-size:16px;padding:16px 34px;border-radius:14px;cursor:pointer;transition:transform .15s,background .2s}
+.btn:hover{background:var(--sea-d)}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.msg{font-size:14px;color:var(--err)}
+
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  aside{position:relative;height:auto;padding:32px 24px;gap:8px}
+  .note{display:none}
+  .gauge-read,.verdict,.gauge svg{margin-left:auto;margin-right:auto}
+  .gauge-read{margin-top:-58px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside>
+    <div>
+      <div class="brand"><span class="dot"></span>Mind Meter</div>
+      <h1>How is your screen time shaping your mind?</h1>
+      <p class="lead">Share your daily habits and get a predicted mental health score.</p>
+    </div>
+    <div>
+      <div class="gauge" aria-live="polite">
+        <svg viewBox="0 0 220 120" aria-hidden="true">
+          <path class="arc-bg" d="M20 110 A90 90 0 0 1 200 110" fill="none" stroke-width="14" stroke-linecap="round"/>
+          <path id="arc" class="arc-fg" d="M20 110 A90 90 0 0 1 200 110" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
+        </svg>
+        <div class="gauge-read"><div class="num" id="score">–</div><div class="of">out of 10</div></div>
+      </div>
+      <p class="verdict" id="verdict">Fill in the form and press Predict score.</p>
+    </div>
+    <p class="note">This is a statistical estimate, not a diagnosis. If you're struggling, please talk to a doctor or counsellor.</p>
+  </aside>
+
+  <main>
+    <form id="predictionForm" novalidate>
+      <section class="sec">
+        <h2>About you</h2>
+        <p class="sub">Basic details help the model compare you with similar students.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="Age">Age</label>
+            <input type="number" id="Age" min="11" max="100" placeholder="21" required>
+          </div>
+          <div class="field">
+            <label for="Country">Country</label>
+            <input type="text" id="Country" placeholder="India" required>
+          </div>
+          <div class="field">
+            <span class="lbl">Gender</span>
+            <div class="seg" data-key="Gender" data-default="Male">
+              <button type="button" class="chip" data-v="Male">Male</button>
+              <button type="button" class="chip" data-v="Female">Female</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="lbl">Academic level</span>
+            <div class="seg" data-key="Academic_Level" data-default="Undergraduate">
+              <button type="button" class="chip" data-v="High School">High School</button>
+              <button type="button" class="chip" data-v="Undergraduate">Undergrad</button>
+              <button type="button" class="chip" data-v="Graduate">Graduate</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2>Social media</h2>
+        <p class="sub">Which app takes most of your time, and why do you open it?</p>
+        <div class="grid">
+          <div class="field wide">
+            <span class="lbl">Most used platform</span>
+            <div class="chips" data-key="Most_Used_Platform" data-default="Instagram">
+              <button type="button" class="chip" data-v="Instagram">Instagram</button>
+              <button type="button" class="chip" data-v="Youtube">YouTube</button>
+              <button type="button" class="chip" data-v="WhatsApp">WhatsApp</button>
+              <button type="button" class="chip" data-v="Facebook">Facebook</button>
+              <button type="button" class="chip" data-v="LinkedIn">LinkedIn</button>
+              <button type="button" class="chip" data-v="Snapchat">Snapchat</button>
+              <button type="button" class="chip" data-v="Twitter">Twitter</button>
+              <button type="button" class="chip" data-v="TikTok">TikTok</button>
+              <button type="button" class="chip" data-v="LINE">LINE</button>
+              <button type="button" class="chip" data-v="KakaoTalk">KakaoTalk</button>
+              <button type="button" class="chip" data-v="VKontakte">VKontakte</button>
+              <button type="button" class="chip" data-v="WeChat">WeChat</button>
+            </div>
+          </div>
+          <div class="field wide">
+            <span class="lbl">Main purpose</span>
+            <div class="seg" data-key="Purpose_Of_Use" data-default="Entertainment">
+              <button type="button" class="chip" data-v="Entertainment">Entertainment</button>
+              <button type="button" class="chip" data-v="Education">Education</button>
+              <button type="button" class="chip" data-v="Networking">Networking</button>
+              <button type="button" class="chip" data-v="News">News</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="Avg_Daily_Usage_Hours">Daily social media <output for="Avg_Daily_Usage_Hours"></output></label>
+            <input type="range" id="Avg_Daily_Usage_Hours" min="0" max="24" step="0.5" value="4" data-unit=" h">
+          </div>
+          <div class="field">
+            <label for="Daily_Unlocks">Phone unlocks per day <output for="Daily_Unlocks"></output></label>
+            <input type="range" id="Daily_Unlocks" min="0" max="300" step="5" value="50">
+          </div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2>Daily routine</h2>
+        <p class="sub">Average hours on a typical day.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="Study_Hours">Study <output for="Study_Hours"></output></label>
+            <input type="range" id="Study_Hours" min="0" max="24" step="0.5" value="4" data-unit=" h">
+          </div>
+          <div class="field">
+            <label for="Physical_Activity_Hours">Physical activity <output for="Physical_Activity_Hours"></output></label>
+            <input type="range" id="Physical_Activity_Hours" min="0" max="24" step="0.5" value="1" data-unit=" h">
+          </div>
+          <div class="field">
+            <label for="Sleep_Hours_Per_Night">Sleep per night <output for="Sleep_Hours_Per_Night"></output></label>
+            <input type="range" id="Sleep_Hours_Per_Night" min="0" max="24" step="0.5" value="7" data-unit=" h">
+          </div>
+          <div class="field">
+            <span class="lbl">Stress level</span>
+            <div class="seg stress" data-key="Stress_Level" data-default="Medium">
+              <button type="button" class="chip" data-v="Low">Low</button>
+              <button type="button" class="chip" data-v="Medium">Medium</button>
+              <button type="button" class="chip" data-v="High">High</button>
+              <button type="button" class="chip" data-v="Very High">Very high</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="submit">
+        <button type="submit" class="btn" id="submitBtn">Predict score</button>
+        <span class="msg" id="msg" role="alert"></span>
+      </div>
+    </form>
+  </main>
+</div>
+
+<script>
+const API_URL = 'http://127.0.0.1:8000/Predict';
+const state = {};
+
+// chip / segmented groups
+document.querySelectorAll('[data-key]').forEach(group => {
+  const key = group.dataset.key;
+  const set = v => {
+    state[key] = v;
+    group.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v));
+  };
+  set(group.dataset.default);
+  group.addEventListener('click', e => {
+    const b = e.target.closest('.chip');
+    if (b) set(b.dataset.v);
+  });
+});
+
+// sliders with live value
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const out = document.querySelector(`output[for="${r.id}"]`);
+  const upd = () => {
+    out.textContent = r.value + (r.dataset.unit || '');
+    r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min) * 100) + '%');
+  };
+  r.addEventListener('input', upd);
+  upd();
+});
+
+// gauge
+const arc = document.getElementById('arc');
+const scoreEl = document.getElementById('score');
+const verdictEl = document.getElementById('verdict');
+function showScore(val) {
+  const n = Number(val);
+  const pct = Math.max(0, Math.min(1, n / 10));
+  arc.style.strokeDashoffset = 283 * (1 - pct);
+  scoreEl.textContent = isNaN(n) ? String(val) : n.toFixed(2);
+  verdictEl.textContent =
+    pct >= 0.7 ? 'Your habits point to a strong mental health score.' :
+    pct >= 0.45 ? 'A moderate score. Small changes to sleep or screen time could help.' :
+    'A lower score. Consider cutting screen time and talking to someone you trust.';
+}
+
+document.getElementById('predictionForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  const msg = document.getElementById('msg');
+  msg.textContent = '';
+
+  const age = parseInt(document.getElementById('Age').value);
+  const country = document.getElementById('Country').value.trim();
+  if (isNaN(age) || age < 11 || age > 100) { msg.textContent = 'Enter an age between 11 and 100.'; document.getElementById('Age').focus(); return; }
+  if (!country) { msg.textContent = 'Enter your country.'; document.getElementById('Country').focus(); return; }
+
+  const num = id => parseFloat(document.getElementById(id).value);
+  const payload = {
+    Age: age,
+    Gender: state.Gender,
+    Country: country,
+    Academic_Level: state.Academic_Level,
+    Most_Used_Platform: state.Most_Used_Platform,
+    Purpose_Of_Use: state.Purpose_Of_Use,
+    Avg_Daily_Usage_Hours: num('Avg_Daily_Usage_Hours'),
+    Daily_Unlocks: parseInt(document.getElementById('Daily_Unlocks').value),
+    Study_Hours: num('Study_Hours'),
+    Physical_Activity_Hours: num('Physical_Activity_Hours'),
+    Sleep_Hours_Per_Night: num('Sleep_Hours_Per_Night'),
+    Stress_Level: state.Stress_Level
+  };
+
+  btn.textContent = 'Predicting…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Prediction request failed');
+    const data = await res.json();
+    showScore(data.predicted_mental_health_score);
+    if (window.innerWidth <= 860) window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Could not reach the server. Make sure FastAPI is running on 127.0.0.1:8000.';
+  } finally {
+    btn.textContent = 'Predict score';
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
